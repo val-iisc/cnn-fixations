@@ -1,5 +1,11 @@
 # CNN-Fixations
-Code for the paper CNN fixations: An unraveling approach to identify discriminative image regions
+
+Code for the paper 
+**[CNN fixations: An unraveling approach to identify discriminative image regions](https://arxiv.org/abs/1708.06670)**
+
+Konda Reddy Mopuri, Utsav Garg, R. Venkatesh Babu
+
+This repository can be used to visualize predictions for four CNNs namely: AlexNet, VGG-16, GoogLeNet and ResNet-101.
 
 ### Usage Instructions
 
@@ -26,5 +32,7 @@ Results of running the demo for one image from ILSVRC validation set
 
 #### ResNet 101
 ![resnet sample](samples/sample_resnet.png)
+
+[More Samples](http://val.serc.iisc.ernet.in/cnn-fixations/)
 
 Contact [Utsav Garg](http://utsavgarg.github.io/) if you have questions.
