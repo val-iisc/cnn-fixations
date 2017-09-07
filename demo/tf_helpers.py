@@ -150,8 +150,8 @@ class Net:
                                                NUM_OVER_SAMPLES,
                                                NUM_OVER_SAMPLES, -1))
         # Currently only meant to work with 1 image, luckily we have only 1
-        # image.
-        self.blobs['prob'] = predictions[0]
+        # image. Transpose to match Caffe.
+        self.blobs['prob'] = Data(predictions[0].T)
 
         # Gather vars
         layers, params = self.sess.run([self.layers, self._params],

@@ -9,9 +9,6 @@ def imgPreprocess(img_path, size=224):
     """
     Process the image by removing the mean and reszing so that the smallest
     edge is 256. Then take crops and average to predict.
-    :param img_path:
-    :param size:
-    :return:
     """
     mean = np.array([103.939, 116.779, 123.68])
     img = img_as_float(io.imread(img_path)).astype(np.float32)
@@ -38,9 +35,9 @@ def imgPreprocess(img_path, size=224):
 def pred(net, img):
     synsets = open('ilsvrc_synsets.txt').readlines()
     net.predict([img], oversample=True)
-    p = net.blobs['prob']
+    p = net.blobs['prob'].data
     # mean label
-    p_mean = np.argmax(p.mean(1))
+    p_mean = np.argmax(np.mean(p, axis=0))
     image_label = synsets[p_mean].split(',')[0].strip()
     image_label = image_label[image_label.index(' ')+1:]
     # Individual labels of 5 crops (- ignore mirrored samples)
