@@ -49,6 +49,28 @@ def _oversample(images, crop_dims):
     return crops
 
 
+def _permute_params_to_caffe(data):
+    if data.ndim == 4:
+        data = np.transpose(data, (3, 2, 0, 1))
+    elif data.ndim == 2:
+        data = np.transpose(data)
+    else:
+        raise(ValueError, 'Well this is unexpected...')
+
+    return data
+
+
+def _permute_blobs_to_caffe(data):
+    if data.ndim == 4:
+        if data.ndim == 4:
+            data = np.transpose(data, (0, 3, 1, 2))
+        elif data.ndim == 2:
+            data = np.transpose(data)
+        else:
+            raise (ValueError, 'Well this is unexpected...')
+
+    return data
+
 class Net:
     def __init__(self, graph, weights,
                  input_tensor_name=None,
@@ -116,26 +138,6 @@ class Net:
         # Save empty dict into blobs
         self.blobs = {}
 
-    def _permute_params_to_caffe(self, data):
-        if data.ndim == 4:
-            data = np.transpose(data, (3, 2, 0, 1))
-        elif data.ndim == 2:
-            data = np.transpose(data)
-        else:
-            raise(ValueError, 'Well this is unexpected...')
-
-        return data
-
-    def _permute_blobs_to_caffe(self, data):
-        if data.ndim == 4:
-            if data.ndim == 4:
-                data = np.transpose(data, (0, 3, 1, 2))
-            elif data.ndim == 2:
-                data = np.transpose(data)
-            else:
-                raise (ValueError, 'Well this is unexpected...')
-
-        return data
 
     def predict(self, img, oversample=True):
         imgs = _oversample(img, (224, 224))
@@ -157,10 +159,10 @@ class Net:
 
         # Run to update current activations and weights
         for k, v in layers.items():
-            self.blobs[k] = Data(self._permute_blobs_to_caffe(v))
+            self.blobs[k] = Data(_permute_blobs_to_caffe(v))
 
         for k, v in params.items():
-            self.params[k] = [Data(self._permute_params_to_caffe(v))]
+            self.params[k] = [Data(_permute_params_to_caffe(v))]
 
 
 class Data:
