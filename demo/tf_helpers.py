@@ -1,10 +1,11 @@
 """
     Helper functions to hide Tensorflow as Caffe.
 """
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
 
 NUM_OVER_SAMPLES = 10
+
 
 def _oversample(images, crop_dims):
     """
@@ -71,6 +72,7 @@ def _permute_blobs_to_caffe(data):
 
     return data
 
+
 class Net:
     def __init__(self, graph, weights,
                  input_tensor_name=None,
@@ -130,14 +132,12 @@ class Net:
                 params[name] = v
                 add_to_layer(name)
 
-
         # Get trainable params - 1 holds locations the other is a dummy script
         self.params = {}
         self._params = params
         self.layers = layers
         # Save empty dict into blobs
         self.blobs = {}
-
 
     def predict(self, img, oversample=True):
         imgs = _oversample(img, (224, 224))
@@ -155,7 +155,7 @@ class Net:
 
         # Gather vars
         layers, params = self.sess.run([self.layers, self._params],
-                               feed_dict={self.placeholder: imgs})
+                                       feed_dict={self.placeholder: imgs})
 
         # Run to update current activations and weights
         for k, v in layers.items():
