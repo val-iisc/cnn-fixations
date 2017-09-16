@@ -38,3 +38,7 @@ Results of running the demo for one image from ILSVRC validation set
 The VGG-16 demo now also has the option to use the TensorFlow backend in addition to the default Caffe backend. (Contributed by [Joe Yearsley](https://github.com/joeyearsley))
 
 Contact [Utsav Garg](http://utsavgarg.github.io/) if you have questions.
+
+#### If you use this work, please cite the paper:
+
+[CNN Fixations: An unraveling approach to visualize the discriminative image regions](https://arxiv.org/abs/1708.06670) 
