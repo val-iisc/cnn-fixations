@@ -35,4 +35,6 @@ Results of running the demo for one image from ILSVRC validation set
 
 [More Samples](http://val.serc.iisc.ernet.in/cnn-fixations/)
 
+The VGG-16 demo now also has the option to use the TensorFlow backend in addition to the default Caffe backend. (Contributed by [Joe Yearsley](https://github.com/joeyearsley))
+
 Contact [Utsav Garg](http://utsavgarg.github.io/) if you have questions.
