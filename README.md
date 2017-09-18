@@ -1,7 +1,7 @@
 # CNN-Fixations
 
 Code for the paper 
-**[CNN fixations: An unraveling approach to identify discriminative image regions](https://arxiv.org/abs/1708.06670)**
+**[CNN fixations: An unravelling approach to identify discriminative image regions](https://arxiv.org/abs/1708.06670)**
 
 Konda Reddy Mopuri, Utsav Garg, R. Venkatesh Babu
 
