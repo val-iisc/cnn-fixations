@@ -86,7 +86,6 @@ class Net:
         :param output_tensor_name: The full tensor name (Include the dev
             placement and scope).
         """
-
         self.sess = tf.Session()
         new_saver = tf.train.import_meta_graph(graph)
         new_saver.restore(self.sess, weights)
@@ -120,6 +119,7 @@ class Net:
 
         for v in trainable_params:
             if 'weight' in v.name:
+                print("add weight layer:", v.name)
                 name = v.name.split('/')[0]
                 params[name] = v
                 add_to_layer(name)
@@ -127,6 +127,7 @@ class Net:
         # Pooling layers usually don't have a nice way of gathering.
         for n in tf.get_default_graph().as_graph_def().node:
             if 'pool' in n.name:
+                print("add pool layer:", n.name)
                 v = get_tensor("{}:0".format(n.name))
                 name = n.name.split('/')[0]
                 params[name] = v

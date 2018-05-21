@@ -31,10 +31,9 @@ def imgPreprocess(img_path, size=224):
     img[:, :, 2] -= mean[0]
     return img, offset, resFac,  newSize
 
-
-def pred(net, img):
+def pred(net, img, oversample=True):
     synsets = open('ilsvrc_synsets.txt').readlines()
-    net.predict([img], oversample=True)
+    net.predict([img], oversample=oversample)
     p = net.blobs['prob'].data
     # mean label
     p_mean = np.argmax(np.mean(p, axis=0))
