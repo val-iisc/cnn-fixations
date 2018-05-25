@@ -18,9 +18,12 @@ def imgPreprocess(img_path, size=224):
     img = transform.resize(img, newSize, mode='constant')
     # Calculate offsets of oversampling from caffe's oversample.
     if (size == 224):
-        offset = [[0, 0], [0, newSize[1]-224], [newSize[0]-224, 0], [
-                 newSize[0]-224, newSize[1]-224], [
-                 newSize[0]/2.0-112, newSize[1]/2.0-112]]
+        offset = [[0, 0], # Left top corner
+                  [0, newSize[1]-224], # Left botton corner
+                  [newSize[0]-224, 0], # Right top corner
+                  [newSize[0]-224, newSize[1]-224], # Right bottom corner
+                  [newSize[0]/2.0-112, newSize[1]/2.0-112] # Center
+                 ]
     else:
         offset = [[0, 0], [0, newSize[1]-227], [newSize[0]-227, 0], [
                  newSize[0]-227, newSize[1]-227], [
@@ -31,29 +34,34 @@ def imgPreprocess(img_path, size=224):
     img[:, :, 2] -= mean[0]
     return img, offset, resFac,  newSize
 
-
-def pred(net, img):
+def pred(net, img, oversample=True):
     synsets = open('ilsvrc_synsets.txt').readlines()
-    net.predict([img], oversample=True)
+    net.predict([img], oversample=oversample)
     p = net.blobs['prob'].data
     # mean label
+    # print("prob of batch mean:", np.mean(p, axis=0))
     p_mean = np.argmax(np.mean(p, axis=0))
+    
     image_label = synsets[p_mean].split(',')[0].strip()
     image_label = image_label[image_label.index(' ')+1:]
-    # Individual labels of 5 crops (- ignore mirrored samples)
-    crop_labels = [np.argmax(p[i]) for i in range(5)]
-    # To check if mean label matches any crop otherwise assign label of center
-    if p_mean in crop_labels:
-        p_m = p_mean
-    else:
-        p_m = crop_labels[4]
-    # Assign labels to crops
-    points = []
-    for i in range(5):
-        if np.argmax(p[i, :]) == p_m:
-            points.append([int(p_m)])
+    
+    if oversample:
+        # Individual labels of 5 crops (- ignore mirrored samples)
+        crop_labels = [np.argmax(p[i]) for i in range(5)]
+        # To check if mean label matches any crop otherwise assign label of center
+        if p_mean in crop_labels:
+            p_m = p_mean
         else:
-            points.append(0)
+            p_m = crop_labels[4]
+        # Assign labels to crops
+        points = []
+        for i in range(5):
+            if np.argmax(p[i, :]) == p_m:
+                points.append([int(p_m)])
+            else:
+                points.append(0)
+    else:
+        points = [[p_mean], 0, 0, 0, 0]
     return points, image_label
 
 
