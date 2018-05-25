@@ -39,7 +39,7 @@ def pred(net, img, oversample=True):
     net.predict([img], oversample=oversample)
     p = net.blobs['prob'].data
     # mean label
-       
+    # print("prob of batch mean:", np.mean(p, axis=0))
     p_mean = np.argmax(np.mean(p, axis=0))
     
     image_label = synsets[p_mean].split(',')[0].strip()

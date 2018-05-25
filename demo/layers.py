@@ -22,10 +22,10 @@ class Fixations:
                 layer_out = []
                 # Blob values (Activation) for prevous layer
                 data = np.squeeze(self.net.blobs[prevLayer].data[cr, :])
-                print("activation of (l-1) layer {} shape: {}".format(prevLayer, data.shape))
+                # print("activation of (l-1) layer {} shape: {}".format(prevLayer, data.shape))
                 # Weights for the current layer
                 param = self.net.params[layer][0].data
-                print("weights of (l) layer {} shape: {}".format(layer, param.shape))
+                # print("weights of (l) layer {} shape: {}".format(layer, param.shape))
                 # If previous layer is not fully connected
                 if (data.ndim == 3):
                     shape = data.shape
@@ -37,7 +37,7 @@ class Fixations:
                         layer_out.append(np.unravel_index(position, shape))
                 else:
                     conv = data*param # Hadamard product. (1000, 1, 1, 1) * (2048,)
-                    print("conv shape:", conv.shape)
+                    # print("conv shape:", conv.shape)
                     for i in points[cr]:
                         # Getting Top-num activations for each input
                         num = np.sum(conv[i, :] > 0)

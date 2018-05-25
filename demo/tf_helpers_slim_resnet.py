@@ -11,6 +11,8 @@ from tensorflow.contrib.slim.nets import resnet_v1
 
 import utils_resnet as utils
 
+import matplotlib.pyplot as plt
+
 NUM_OVER_SAMPLES = 10
 
 
@@ -253,14 +255,12 @@ class Net:
         with eval_graph.as_default():
             images = tf.placeholder("float", [batch_size, 224, 224, 3], name="images")
             labels = tf.placeholder(tf.float32, [batch_size, num_class], name="labels")
-            
-            preprocessed_images = utils.resnet_preprocess(images)
 
             with slim.arg_scope(resnet_v1.resnet_arg_scope()):
                 with slim.arg_scope([slim.batch_norm], is_training=False):
                     # is_training=False means batch-norm is not in training mode. Fixing batch norm layer.
                     # net is logit for resnet_v1. See is_training messing up issue: https://github.com/tensorflow/tensorflow/issues/4887
-                    net, end_points = resnet_v1.resnet_v1_101(preprocessed_images, num_class)
+                    net, end_points = resnet_v1.resnet_v1_101(images, num_class, is_training=False)
                     print("net:", net)
             prob = tf.reshape(end_points['predictions'], (batch_size, num_class)) # after softmax
 
@@ -364,9 +364,16 @@ class Net:
         # Save empty dict into blobs
         self.blobs = {}
 
-    def predict(self, image_path, oversample=False):
-        image_path = image_path[0]
-        img = utils.load_image(image_path, normalize=False)                    
+    def predict(self, img, oversample=False):
+        
+        img = _oversample(img, (224, 224))[4]
+        # print("img after getting centcrop img:", img)
+        # pos_img = (img - np.min(img))
+        # norm = pos_img / np.max(pos_img)
+        # print("normalized image visualization")
+        # plt.imshow(norm)
+        # plt.show()
+        
         batch_img1 = img.reshape((1, 224, 224, 3))
         batch_images = (batch_img1,)
         if len(batch_images) == 1:
@@ -381,6 +388,10 @@ class Net:
                                     feed_dict={self.placeholder: batch_img})[0]
         # shape of (batch_size, prob_per_class)
         # print("predictions shape:", predictions.shape)
+        # print("predictions:", predictions)
+        # for i in range(1000):
+        #     if (predictions[0][i] > 0.005):
+        #         print("idx: {}, score: {:.4f}".format(i, predictions[0][i]))
         
         # print("argmax prediction:", np.argmax(predictions))
         # print("max prediction:", np.max(predictions))

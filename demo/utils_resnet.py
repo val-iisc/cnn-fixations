@@ -37,7 +37,7 @@ def resnet_preprocess(resized_inputs):
     """
     channel_means = tf.constant([123.68, 116.779, 103.939],
         dtype=tf.float32, shape=[1, 1, 1, 3], name='img_mean')
-    return resized_inputs - channel_means
+    return (resized_inputs - channel_means) / 255.0
 
 
 # returns image of shape [224, 224, 3]
@@ -49,6 +49,9 @@ def load_image(path, normalize=True):
     """
     # load image
     img = skimage.io.imread(path)
+    print("just after file load")
+    imshow(img)
+    plt.show()
     if normalize:
         img = img / 255.0
         assert (0 <= img).all() and (img <= 1.0).all()
@@ -60,8 +63,20 @@ def load_image(path, normalize=True):
     yy = int((img.shape[0] - short_edge) / 2)
     xx = int((img.shape[1] - short_edge) / 2)
     crop_img = img[yy: yy + short_edge, xx: xx + short_edge]
+    print("just after crop")
+    print("crop_img:", crop_img)
+    imshow(crop_img)
+    plt.show()
     # resize to 224, 224
-    resized_img = skimage.transform.resize(crop_img, (224, 224), preserve_range=True) # do not normalize at transform. 
+    resized_img = skimage.transform.resize(crop_img, (224, 224))  # by default it normalize pixel values. (0,255)->(0,1)
+    
+    if not normalize:
+        resized_img = (resized_img * 255).astype(np.uint8)
+    
+    print("just after resize")
+    print("resized_image:", resized_img)
+    imshow(resized_img)
+    plt.show()
     return resized_img
 
 # returns the top1 string
