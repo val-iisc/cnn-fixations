@@ -81,7 +81,7 @@ def print_prob(prob, file_path):
 
 
 
-def visualize(image, conv_output, conv_grad, gb_viz):
+def visualize_gradcam(image, conv_output, conv_grad, gb_viz):
     output = conv_output           # [7,7,512]
     grads_val = conv_grad          # [7,7,512]
     print("grads_val shape:", grads_val.shape)

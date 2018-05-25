@@ -1,18 +1,31 @@
 import numpy as np
+from pprint import pprint
 
 
 class Fixations:
+    """
+    This code is caffe compatible. 
+    caffe uses (w, h, channel, batch) notation for weights. (Really? cofirmation required)
+    """
     def __init__(self, net):
         self.net = net
 
     def fc(self, points, layer, prevLayer):
-        for cr in range(5):
+        """
+        In paper, it is decribed in Algorithm 1. 
+        
+        layer: higher layer (closer to final prediction)
+        prevLayer: lower layer (closer to input data)
+        """
+        for cr in range(5): # loop over 5 final prediction. (multi-crop inference)
             if (points[cr] != 0):
                 layer_out = []
-                # Blob values for prevous layer
+                # Blob values (Activation) for prevous layer
                 data = np.squeeze(self.net.blobs[prevLayer].data[cr, :])
+                print("activation of (l-1) layer {} shape: {}".format(prevLayer, data.shape))
                 # Weights for the current layer
                 param = self.net.params[layer][0].data
+                print("weights of (l) layer {} shape: {}".format(layer, param.shape))
                 # If previous layer is not fully connected
                 if (data.ndim == 3):
                     shape = data.shape
@@ -23,11 +36,13 @@ class Fixations:
                         position = np.argmax(conv[i, :])
                         layer_out.append(np.unravel_index(position, shape))
                 else:
-                    conv = data*param
+                    conv = data*param # Hadamard product. (1000, 1, 1, 1) * (2048,)
+                    print("conv shape:", conv.shape)
                     for i in points[cr]:
                         # Getting Top-num activations for each input
                         num = np.sum(conv[i, :] > 0)
-                        layer_out.extend(np.argsort(conv[i, :])[::-1][:num])
+                        top_k_list = np.argsort(np.ravel(conv[i, :]))[::-1][:num].tolist()
+                        layer_out.extend(top_k_list)
                 points[cr] = list(set(layer_out))
         return points
 
@@ -160,54 +175,149 @@ class Fixations:
         return points
     
     # Residual block for ResNet-101
-    def res(self, points, layer, prevLayer):
+    def res(self, points, layer, prevLayer, network_name="caffe"):
+        
+        # print("pervLayer:", prevLayer)
+        # print("layer:", layer)
+        
         for cr in range(5):
             if (points[cr] != 0):
-                layer_out = []
-            flag = False #flag to check if previous block downsampled the inputs
-            if 'a' in layer:
-                    flag = True
+                layer_out = []                
+                
+                flag_caffe_first_layer_of_block = False
+                flag_tf_slim_resnet_v1_first_layer_of_block = False
+                flag_tf_slim_resnet_v1_last_layer_of_block = False
+                
+                flag_handle_feature_map_depth = False # number of channels
+                flag_handle_feature_map_size = False # spatial w,h size of feature map.
+                
+                # TODO: replace all flag to specific flag.                 
+                if 'a' in layer:
+                    if network_name == "caffe":
+                        # In caffe resnet implementation, first unit of each block downsample the input.
+                        flag_caffe_first_layer_of_block = True
+                        flag_handle_feature_map_depth = True
+                        flag_handle_feature_map_size = True
                     # Getting activations from previous residual block
-                    branch_skip = self.net.blobs['res'+layer+'_branch1'].data[cr]
-            else:
-                    branch_skip = self.net.blobs['res'+prevLayer].data[cr]
-            # Getting activations from all convolution layers inside the residual block
-            branch_res_blobs = [self.net.blobs['res'+layer+'_branch2a'].data[cr], self.net.blobs['res'+layer+'_branch2b'].data[cr], self.net.blobs['res'+layer+'_branch2c'].data[cr]]
-        # Pad input to 3x3 block so the size remains same after conv
-            branch_res_blobs[0] = np.lib.pad(branch_res_blobs[0], 1 ,'constant',constant_values=0)[1:-1,:,:]
-            for i in points[cr]:
-                # To check if the higher activation at a point came from skip or delta branch
-                if branch_skip[i[0], i[1], i[2]] >= branch_res_blobs[2][i[0], i[1], i[2]]:
-                        if flag:
-                                param = self.net.params['res'+layer+'_branch1'][0].data[i[0], :, 0, 0]
-                                if prevLayer == 'pool1':
-                                        data = self.net.blobs[prevLayer].data[cr, :, i[1], i[2]]
-                                        feature = np.argmax(data*param)
-                                        layer_out.append((feature, i[1], i[2]))
-                                else:
-                                        data = self.net.blobs['res'+prevLayer].data[cr, :, i[1]*2, i[2]*2]
-                                        feature = np.argmax(data*param)
-                                        layer_out.append((feature, i[1]*2, i[2]*2))
-                        else:
-                                layer_out.append(i)
+                    elif "tf_slim_resnet_v1" in network_name:       
+                        flag_tf_slim_resnet_v1_first_layer_of_block = True
+                        flag_handle_feature_map_depth = True                        
+                        
+                    branch_skip_name = 'res'+layer+'_branch1'
                 else:
+                    if network_name == "tf_slim_resnet_v1_101" and (layer == "4b22" or layer == "3b3" or layer == "2c"):
+                        # In slim resnet v1 implementation, final unit of each block already downsample the output. 
+                        flag_tf_slim_resnet_v1_last_layer_of_block = True
+                        flag_handle_feature_map_size = True
+                    if network_name == "tf_slim_resnet_v1_50" and (layer == "4b5" or layer == "3b3" or layer == "2c"):
+                        # In slim resnet v1 implementation, final unit of each block already downsample the output. 
+                        flag_tf_slim_resnet_v1_last_layer_of_block = True
+                        flag_handle_feature_map_size = True
+                        
+                    # print("cr:", cr,", branch_skip = ", 'res'+prevLayer)
+                    branch_skip_name = 'res'+prevLayer
+                    
+                
+                # print("branch_skip_name:", branch_skip_name)
+                branch_skip = self.net.blobs[branch_skip_name].data[cr]
+                # Getting activations from all convolution layers inside the residual block
+                branch_res_blobs = [self.net.blobs['res'+layer+'_branch2a'].data[cr], self.net.blobs['res'+layer+'_branch2b'].data[cr], self.net.blobs['res'+layer+'_branch2c'].data[cr]]
+                # print('res'+layer+'_branch2c' + " shape", self.net.blobs['res'+layer+'_branch2c'].data[cr].shape)
+                
+                # Pad input to 3x3 block so the size remains same after conv with stride 1
+                branch_res_blobs[0] = np.lib.pad(branch_res_blobs[0], 1 ,'constant',constant_values=0)[1:-1,:,:]
+                for idx, i in enumerate(points[cr]):
+                    # print("point index: {}, point: {}".format(idx, i))
+                    # To check if the higher activation at a point came from skip or delta branch
+                    # print("branch skip shape", branch_skip.shape)
+                    # print("branch branch_res_blobs[2] shape", branch_res_blobs[2].shape)
+                    if branch_skip[i[0], i[1], i[2]] >= branch_res_blobs[2][i[0], i[1], i[2]]:
+                        # print("backtrack through skip connection")                        
+                        if flag_caffe_first_layer_of_block:
+                            param = self.net.params['res'+layer+'_branch1'][0].data[i[0], :, 0, 0]
+                            if prevLayer == 'pool1':
+                                data = self.net.blobs[prevLayer].data[cr, :, i[1], i[2]]
+                                feature = np.argmax(data*param)
+                                layer_out.append((feature, i[1], i[2]))
+                            else:
+                                data = self.net.blobs['res'+prevLayer].data[cr, :, i[1]*2, i[2]*2]
+                                feature = np.argmax(data*param)
+                                layer_out.append((feature, i[1]*2, i[2]*2))
+
+                        elif flag_tf_slim_resnet_v1_first_layer_of_block:
+                            # NOTE: ON development
+                            param = self.net.params['res'+layer+'_branch1'][0].data[i[0], :, 0, 0]
+                            if prevLayer == "pool1":                                
+                                data = self.net.blobs[prevLayer].data[cr, :, i[1], i[2]]
+                                feature = np.argmax(data*param)
+                                layer_out.append((feature, i[1], i[2]))                                
+                            else:
+                                # Just change feature map depth.                                 
+                                data = self.net.blobs['res'+prevLayer].data[cr, :, i[1], i[2]]
+                                feature = np.argmax(data*param) # change depth
+                                layer_out.append((feature, i[1], i[2])) # stride 2 conv. 
+                        elif flag_tf_slim_resnet_v1_last_layer_of_block:
+                            # NOTE: ON development
+                            # print("backtrack stride 2, receptive field 1x1 maxpooling. i:", i)
+                            layer_out.append((i[0], i[1]*2, i[2]*2))
+                        else:
+                            layer_out.append(i)                                        
+                    else:
+                        # print("backtrack through delta connection")
+                        # print("param: ", 'res'+layer+'_branch2c')
+                        # Weights
                         param = self.net.params['res'+layer+'_branch2c'][0].data[i[0], :, 0, 0]
+                        # print("param shape: ", param.shape)
+
+                        # Activation
+                        # print("branch_res_blobs[1]:", 'res'+layer+'_branch2b')
+                        # print("branch_res_blobs[1] shape:", branch_res_blobs[1].shape)
                         feature = np.argmax(branch_res_blobs[1][:, i[1], i[2]]*param)
                         param = self.net.params['res'+layer+'_branch2b'][0].data[feature, :, :, :]
-                        data = branch_res_blobs[0][:, i[1]:i[1]+3, i[2]:i[2]+3]
-                        feature = np.argmax(np.sum(np.sum(data*param, axis=2),axis=1))
-                        x, y = np.unravel_index(np.argmax(data[feature,:,:]),data[feature,:,:].shape)
-                        if flag:
-                                param = self.net.params['res'+layer+'_branch2a'][0].data[feature, :, 0, 0]
-                                if prevLayer =='pool1':
-                                        feature = np.argmax(self.net.blobs[prevLayer].data[cr, :, i[1]+x-1, i[2]+y-1]*param)
-                                        layer_out.append((feature, i[1]+x-1, i[2]+y-1))
-                                else:
-                                        feature = np.argmax(self.net.blobs['res'+prevLayer].data[cr, :, (i[1]+x-1)*2, (i[2]+y-1)*2]*param)
-                                        layer_out.append((feature, (i[1]+x-1)*2, (i[2]+y-1)*2))
+                        # print("param shape: ", param.shape)
+                        if flag_tf_slim_resnet_v1_last_layer_of_block:
+                            # NOTE: ON development
+                            # print("tf slim last layer of block")
+                            # Consider stride 2 option to reduce spatial resolution.                            
+                            data = branch_res_blobs[0][:, (i[1]*2):((i[1]*2)+3), (i[2]*2):((i[2]*2)+3)]
                         else:
-                                param = self.net.params['res'+layer+'_branch2a'][0].data[feature, :, 0, 0]
-                                feature = np.argmax(branch_skip[:,i[1]+x-1,i[2]+y-1]*param)
+                            data = branch_res_blobs[0][:, i[1]:i[1]+3, i[2]:i[2]+3]
+                        # print("data (receptive field of the current spatial point of {}) shape:".format('res'+layer+'_branch2a'), data.shape)
+                        feature = np.argmax(np.sum(np.sum(data*param, axis=2),axis=1))
+
+                        # location of where the point come from in prev layer (closer to input)
+                        x, y = np.unravel_index(np.argmax(data[feature,:,:]),data[feature,:,:].shape) 
+                        # print("x, y:", x, y)
+                        
+                        if flag_caffe_first_layer_of_block:
+                            param = self.net.params['res'+layer+'_branch2a'][0].data[feature, :, 0, 0]
+                            if prevLayer =='pool1':
+                                feature = np.argmax(self.net.blobs[prevLayer].data[cr, :, i[1]+x-1, i[2]+y-1]*param)
                                 layer_out.append((feature, i[1]+x-1, i[2]+y-1))
-            points[cr] = list(set(layer_out))                        
+                            else:
+                                feature = np.argmax(self.net.blobs['res'+prevLayer].data[cr, :, (i[1]+x-1)*2, (i[2]+y-1)*2]*param)
+                                layer_out.append((feature, (i[1]+x-1)*2, (i[2]+y-1)*2))
+
+                        elif flag_tf_slim_resnet_v1_first_layer_of_block:                            
+                            # NOTE: ON development
+                            param = self.net.params['res'+layer+'_branch2a'][0].data[feature, :, 0, 0]
+                            if prevLayer == 'pool1':                                
+                                feature = np.argmax(self.net.blobs[prevLayer].data[cr, :, i[1]+x-1, i[2]+y-1]*param)
+                                layer_out.append((feature, i[1]+x-1, i[2]+y-1))
+                            else:                                
+                                feature = np.argmax(self.net.blobs['res'+prevLayer].data[cr, :, i[1]+x-1, i[2]+y-1]*param)
+                                layer_out.append((feature, i[1]+x-1, i[2]+y-1))
+                        elif flag_tf_slim_resnet_v1_last_layer_of_block:
+                            # NOTE: ON development
+                            # print("tf slim last layer of block")                            
+                            # print("receptive field data:", data[feature,:,:])
+                            param = self.net.params['res'+layer+'_branch2a'][0].data[feature, :, 0, 0]
+                            feature = np.argmax(self.net.blobs['res'+prevLayer].data[cr, :, (i[1])*2+x-1, (i[2])*2+y-1]*param)
+                            layer_out.append((feature, (i[1])*2+x-1, (i[2])*2+y-1))
+                        else:
+                            param = self.net.params['res'+layer+'_branch2a'][0].data[feature, :, 0, 0]
+                            feature = np.argmax(branch_skip[:,i[1]+x-1,i[2]+y-1]*param)
+                            layer_out.append((feature, i[1]+x-1, i[2]+y-1))
+                
+                points[cr] = list(set(layer_out))                        
         return points

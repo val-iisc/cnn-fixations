@@ -142,6 +142,8 @@ class Net:
 
     def predict(self, img, oversample=True):
         imgs = _oversample(img, (224, 224))
+        print("imgs:",  imgs)
+        print("imgs shape:",  imgs.shape)
 
         predictions = self.sess.run([self.softmax],
                                     feed_dict={self.placeholder: imgs})[0]
@@ -155,6 +157,9 @@ class Net:
         self.blobs['prob'] = Data(predictions[0].T)
 
         # Gather vars
+        
+        print("imgs:",  imgs)
+        print("imgs shape:",  imgs.shape)
         layers, params = self.sess.run([self.layers, self._params],
                                        feed_dict={self.placeholder: imgs})
 
